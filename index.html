@@ -1,0 +1,406 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Dice Duel – Best of 5</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --text: #e5e7eb;
+      --accent: #22c55e;
+      --muted: #94a3b8;
+      --lose: #ef4444;
+      --draw: #f59e0b;
+      --hint: #38bdf8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(1000px 600px at 50% -200px, #1f2937 0%, var(--bg) 40%, #0b1022 100%);
+      color: var(--text); display: grid; min-height: 100dvh; place-items: center; padding: 2rem;
+    }
+    .app {
+      width: min(900px, 96vw);
+      background: linear-gradient(180deg, #0b1220, var(--panel));
+      border: 1px solid #1f2937; border-radius: 16px; padding: 1.25rem;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+    header {
+      display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+    h1 { margin: 0; font-weight: 800; letter-spacing: 0.2px; }
+    p.sub { margin: 0; color: var(--muted); }
+    .row { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
+
+    .names {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; width: 100%; margin-top: 0.75rem;
+    }
+    .names .box {
+      border: 1px solid #1f2937; border-radius: 12px; padding: 0.75rem; background: #0b1220cc;
+    }
+    .names label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.25rem; }
+    .names input {
+      width: 100%; padding: 0.6rem 0.7rem; border-radius: 8px; border: 1px solid #263248;
+      background: #0f172acc; color: var(--text);
+    }
+
+    .meta {
+      display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin: 0.75rem 0 0.25rem;
+      color: var(--muted);
+    }
+    .badge {
+      background: #0b1220cc; border: 1px solid #1f2937; color: var(--text);
+      padding: 0.35rem 0.6rem; border-radius: 999px; font-size: 0.85rem;
+    }
+    .hint { color: var(--hint); }
+
+    .players {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 0.8rem 0 0.6rem;
+    }
+    .card {
+      border: 1px solid #1f2937; border-radius: 12px; padding: 1rem; background: #0b1220cc;
+      position: relative;
+    }
+    .turn {
+      position: absolute; top: 10px; right: 10px; font-size: 0.75rem; color: var(--hint);
+      border: 1px dashed #334155; padding: 0.25rem 0.5rem; border-radius: 999px;
+      display: none;
+    }
+    .card.active .turn { display: inline-block; }
+    .name {
+      font-size: 0.95rem; color: var(--muted); margin-bottom: 0.5rem; display: flex; justify-content: space-between;
+    }
+    .dice {
+      display: grid; grid-template-columns: repeat(3, 48px);
+      gap: 10px; justify-content: start; align-items: center;
+    }
+    .pip {
+      width: 48px; height: 48px; display: grid; place-items: center;
+      background: #0f172acc; border: 1px solid #1f2937; border-radius: 10px;
+      font-weight: 700; font-variant-numeric: tabular-nums; font-size: 1.15rem;
+      text-shadow: 0 1px 0 #000;
+    }
+    .score { margin-top: 0.75rem; font-size: 0.95rem; color: var(--muted); }
+    .result { margin: 0.6rem 0 0; font-weight: 700; }
+    .result.win { color: var(--accent); }
+    .result.lose { color: var(--lose); }
+    .result.draw { color: var(--draw); }
+
+    .actions {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; align-items: center; margin: 0.5rem 0 0.75rem;
+    }
+    .actions .left, .actions .right {
+      display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;
+    }
+    button {
+      all: unset; background: linear-gradient(180deg, #16a34a, #15803d);
+      color: white; padding: 0.75rem 1rem; border-radius: 10px; cursor: pointer;
+      border: 1px solid #14532d; box-shadow: 0 3px 0 #166534 inset, 0 6px 16px rgba(34,197,94,0.25);
+      font-weight: 700; letter-spacing: 0.2px;
+    }
+    button.secondary {
+      background: linear-gradient(180deg, #334155, #1f2937); border-color: #0f172a;
+      box-shadow: 0 3px 0 #111827 inset;
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button:active:not(:disabled) { transform: translateY(1px); }
+
+    .scoreboard {
+      border: 1px solid #1f2937; border-radius: 12px; padding: 0.8rem; background: #0b1220cc;
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; text-align: center; color: var(--muted);
+    }
+    .scoreboard .num { color: var(--text); font-weight: 800; font-size: 1.05rem; display: block; margin-top: 2px; }
+
+    .summary {
+      margin-top: 0.75rem; border: 1px solid #1f2937; border-radius: 12px; padding: 0.8rem; background: #0b1220cc;
+      display: none;
+    }
+    .summary.visible { display: block; }
+    .summary h3 { margin: 0 0 0.4rem; }
+    .log {
+      margin-top: 0.6rem; font-size: 0.9rem; color: var(--muted); max-height: 160px; overflow: auto;
+      border-top: 1px dashed #263248; padding-top: 0.5rem;
+    }
+    .log p { margin: 0.2rem 0; }
+
+    @media (max-width: 720px) {
+      .players { grid-template-columns: 1fr; }
+      .actions { grid-template-columns: 1fr; }
+      .scoreboard { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div>
+        <h1>Dice Duel 🎲</h1>
+        <p class="sub">Two players roll three dice each. Best of 5 rounds wins.</p>
+      </div>
+      <div class="row">
+        <span class="badge">Round: <strong id="roundLabel">1 / 5</strong></span>
+        <span class="badge">Current turn: <strong id="turnLabel">Player 1</strong></span>
+        <span class="badge hint">Tip: press <b>R</b> to roll for the current player</span>
+      </div>
+    </header>
+
+    <section class="names">
+      <div class="box">
+        <label for="p1name">Player 1 name</label>
+        <input id="p1name" placeholder="Player 1" value="Player 1"/>
+      </div>
+      <div class="box">
+        <label for="p2name">Player 2 name</label>
+        <input id="p2name" placeholder="Player 2" value="Player 2"/>
+      </div>
+    </section>
+
+    <section class="meta"></section>
+
+    <section class="players">
+      <article class="card" id="p1card">
+        <div class="turn">Your turn</div>
+        <div class="name">
+          <span id="p1label">Player 1</span>
+        </div>
+        <div class="dice" id="p1dice"></div>
+        <div class="score">Total: <strong id="p1sum">—</strong></div>
+        <div class="result" id="p1res"></div>
+      </article>
+
+      <article class="card" id="p2card">
+        <div class="turn">Your turn</div>
+        <div class="name">
+          <span id="p2label">Player 2</span>
+        </div>
+        <div class="dice" id="p2dice"></div>
+        <div class="score">Total: <strong id="p2sum">—</strong></div>
+        <div class="result" id="p2res"></div>
+      </article>
+    </section>
+
+    <section class="actions">
+      <div class="left">
+        <button id="rollP1">Roll: <span id="btnP1Name">Player 1</span></button>
+        <button id="rollP2">Roll: <span id="btnP2Name">Player 2</span></button>
+      </div>
+      <div class="right">
+        <button id="reset" class="secondary">Reset Match</button>
+      </div>
+    </section>
+
+    <section class="scoreboard" aria-label="Scoreboard">
+      <div>🏆 <span class="num" id="p1wins">0</span> <div style="font-size:.85rem;color:var(--muted)">P1 Wins</div></div>
+      <div>🏆 <span class="num" id="p2wins">0</span> <div style="font-size:.85rem;color:var(--muted)">P2 Wins</div></div>
+      <div>🤝 <span class="num" id="draws">0</span> <div style="font-size:.85rem;color:var(--muted)">Draws</div></div>
+      <div>🎯 <span class="num" id="points">0 – 0</span> <div style="font-size:.85rem;color:var(--muted)">Total Points</div></div>
+    </section>
+
+    <section class="summary" id="summary">
+      <h3>Final Results</h3>
+      <p id="finalLine"></p>
+      <ul id="finalList" style="margin:0.4rem 0 0 1rem;">
+        <li id="finalP1"></li>
+        <li id="finalP2"></li>
+        <li id="finalDraws"></li>
+        <li id="finalPoints"></li>
+      </ul>
+      <div class="log" id="log"></div>
+    </section>
+  </main>
+
+  <script>
+    // Utilities
+    const d = n => Math.floor(Math.random() * n) + 1;
+    const $ = sel => document.querySelector(sel);
+    const el = id => document.getElementById(id);
+
+    // State
+    const bestOf = 5;
+    let roundNum, currentPlayer, matchOver;
+    let p1Wins, p2Wins, draws, p1Points, p2Points;
+    let p1Rolled, p2Rolled, p1RoundSum, p2RoundSum;
+    let nextRoundStarter; // alternates who begins each new round
+    let logLines = [];
+
+    // Render helpers
+    function renderDice(containerId, rolls) {
+      const c = el(containerId);
+      c.innerHTML = '';
+      rolls.forEach(v => {
+        const div = document.createElement('div');
+        div.className = 'pip';
+        div.textContent = v;
+        c.appendChild(div);
+      });
+    }
+    function clearDice() {
+      ['p1dice','p2dice'].forEach(id => el(id).innerHTML = '');
+      el('p1sum').textContent = '—';
+      el('p2sum').textContent = '—';
+      el('p1res').className = 'result'; el('p1res').textContent = '';
+      el('p2res').className = 'result'; el('p2res').textContent = '';
+    }
+    function updateNames() {
+      const n1 = (el('p1name').value || 'Player 1').trim();
+      const n2 = (el('p2name').value || 'Player 2').trim();
+      el('p1label').textContent = n1;
+      el('p2label').textContent = n2;
+      el('btnP1Name').textContent = n1;
+      el('btnP2Name').textContent = n2;
+      el('turnLabel').textContent = currentPlayer === 1 ? n1 : n2;
+      // scoreboard captions
+      el('p1wins').parentElement.querySelector('div').textContent = `${n1} Wins`;
+      el('p2wins').parentElement.querySelector('div').textContent = `${n2} Wins`;
+    }
+    function updateScoreboard() {
+      el('p1wins').textContent = p1Wins;
+      el('p2wins').textContent = p2Wins;
+      el('draws').textContent  = draws;
+      el('points').textContent = `${p1Points} – ${p2Points}`;
+      el('roundLabel').textContent = `${Math.min(roundNum, bestOf)} / ${bestOf}`;
+      el('turnLabel').textContent = currentPlayer === 1 ? (el('p1name').value || 'Player 1') : (el('p2name').value || 'Player 2');
+
+      // turn styling
+      el('p1card').classList.toggle('active', !matchOver && currentPlayer === 1);
+      el('p2card').classList.toggle('active', !matchOver && currentPlayer === 2);
+
+      // button states
+      el('rollP1').disabled = matchOver || currentPlayer !== 1;
+      el('rollP2').disabled = matchOver || currentPlayer !== 2;
+    }
+    function appendLog(text) {
+      logLines.push(text);
+      const log = el('log');
+      log.innerHTML = logLines.map(l => `<p>${l}</p>`).join('');
+      log.scrollTop = log.scrollHeight;
+    }
+
+    // Round / Match control
+    function startMatch() {
+      roundNum = 1;
+      nextRoundStarter = 1;
+      currentPlayer = nextRoundStarter;
+      matchOver = false;
+      p1Wins = p2Wins = draws = 0;
+      p1Points = p2Points = 0;
+      logLines = [];
+      el('summary').classList.remove('visible');
+      clearDice();
+      startRound();
+      updateNames();
+      updateScoreboard();
+    }
+    function startRound() {
+      p1Rolled = p2Rolled = false;
+      p1RoundSum = p2RoundSum = null;
+      clearDice();
+      currentPlayer = nextRoundStarter; // who begins this round
+      updateScoreboard();
+    }
+    function endRound() {
+      // Decide round winner and update tallies
+      let res1 = '', res2 = '';
+      if (p1RoundSum > p2RoundSum) {
+        p1Wins++; res1 = 'Winner 🏆'; res2 = 'Try again'; 
+        el('p1res').className = 'result win';
+        el('p2res').className = 'result lose';
+      } else if (p2RoundSum > p1RoundSum) {
+        p2Wins++; res2 = 'Winner 🏆'; res1 = 'Try again';
+        el('p2res').className = 'result win';
+        el('p1res').className = 'result lose';
+      } else {
+        draws++; res1 = res2 = 'Draw 🤝';
+        el('p1res').className = 'result draw';
+        el('p2res').className = 'result draw';
+      }
+      el('p1res').textContent = res1;
+      el('p2res').textContent = res2;
+
+      // Totals
+      p1Points += p1RoundSum;
+      p2Points += p2RoundSum;
+
+      const n1 = el('p1name').value || 'Player 1';
+      const n2 = el('p2name').value || 'Player 2';
+      appendLog(`Round ${roundNum}: ${n1} ${p1RoundSum} vs ${n2} ${p2RoundSum} — ${res1 === 'Winner 🏆' ? n1 : res2 === 'Winner 🏆' ? n2 : 'Draw'}`);
+
+      // Advance or finish
+      if (roundNum >= bestOf) {
+        finishMatch();
+      } else {
+        roundNum++;
+        // Alternate who starts
+        nextRoundStarter = nextRoundStarter === 1 ? 2 : 1;
+        // Prepare next round (clear board)
+        setTimeout(() => { startRound(); }, 450); // slight delay so players see result
+      }
+
+      updateScoreboard();
+    }
+    function finishMatch() {
+      matchOver = true;
+      updateScoreboard();
+
+      const n1 = el('p1name').value || 'Player 1';
+      const n2 = el('p2name').value || 'Player 2';
+      let line;
+      if (p1Wins > p2Wins) line = `Overall winner: ${n1} 🏆`;
+      else if (p2Wins > p1Wins) line = `Overall winner: ${n2} 🏆`;
+      else line = `Overall result: Draw 🤝`;
+
+      el('finalLine').textContent = line;
+      el('finalP1').textContent = `${n1} wins: ${p1Wins}`;
+      el('finalP2').textContent = `${n2} wins: ${p2Wins}`;
+      el('finalDraws').textContent = `Draws: ${draws}`;
+      el('finalPoints').textContent = `Total points: ${n1} ${p1Points} – ${n2} ${p2Points}`;
+      el('summary').classList.add('visible');
+    }
+
+    // Rolling logic (turn-based)
+    function rollFor(player) {
+      if (matchOver) return;
+      if (player !== currentPlayer) return;
+
+      const targetDice = player === 1 ? 'p1dice' : 'p2dice';
+      const targetSum  = player === 1 ? 'p1sum'  : 'p2sum';
+
+      const rolls = [d(6), d(6), d(6)];
+      const sum = rolls.reduce((a,b)=>a+b,0);
+      renderDice(targetDice, rolls);
+      el(targetSum).textContent = sum;
+
+      if (player === 1) { p1Rolled = true; p1RoundSum = sum; currentPlayer = 2; }
+      else              { p2Rolled = true; p2RoundSum = sum; currentPlayer = 1; }
+
+      // If both have rolled, decide the round
+      if (p1Rolled && p2Rolled) {
+        endRound();
+      } else {
+        updateScoreboard();
+      }
+    }
+
+    // Events
+    el('rollP1').addEventListener('click', () => rollFor(1));
+    el('rollP2').addEventListener('click', () => rollFor(2));
+    el('reset').addEventListener('click', startMatch);
+
+    el('p1name').addEventListener('input', updateNames);
+    el('p2name').addEventListener('input', updateNames);
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key.toLowerCase() === 'r') {
+        rollFor(currentPlayer);
+      }
+    });
+
+    // Init 
+    startMatch();
+  </script>
+</body>
+</html>
